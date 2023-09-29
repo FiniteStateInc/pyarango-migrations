@@ -86,3 +86,21 @@ To create a new migration script, you can use the create command followed by a b
 bin/cli.py migration create third_one # should create a file named 0003_third_one.py
 ```
 
+
+### Building Package
+
+After updating the project make sure to bump version and run the following command to build the package:
+
+```shell
+poetry build
+```
+
+To install in a local environment, run the following command:
+
+```shell
+# using pip
+pip install dist/pyarango_migrations-0.1.0-py3-none-any.whl
+# using poetry 
+poetry add dist/pyarango_migrations-0.1.0-py3-none-any.whl
+```
+

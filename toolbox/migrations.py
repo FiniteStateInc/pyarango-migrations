@@ -14,7 +14,7 @@ import arango.exceptions
 import click
 from arango import ArangoClient, database
 
-from toolbox.settings import MIGRATION_COLLECTION, MIGRATION_DIR, MIGRATION_TEMPLATE
+from toolbox.constants import MIGRATION_COLLECTION, MIGRATION_TEMPLATE
 from toolbox.utils import generate_timestamp, has_method, import_module
 
 logger = logging.getLogger(__name__)
@@ -60,20 +60,28 @@ def _get_next_migration_filename_prefix(directory: str) -> str:
 
 
 @cli_migration.command(name="create")
+@click.option(
+    "--directory",
+    required=False,
+    type=click.Path(exists=True),
+    help="Path to directory to create migration script in.",
+    default=f"{os.getcwd()}/migrations",
+)
 @click.argument("name", required=True, type=str)
-def create_migration_script(name: str) -> None:
+def create_migration_script(name: str, **kwargs: str) -> None:
     """
     Create a new migration script. The name will be prefixed with a 4-digit number and appended with the .py extension.
 
     :param name: Name of the migration script.
     :return: None
     """
-    filename = f"{_get_next_migration_filename_prefix(MIGRATION_DIR)}_{name}.py"
+    migration_dir = kwargs["directory"]
+    filename = f"{_get_next_migration_filename_prefix(migration_dir)}_{name}.py"
 
     with open(os.path.join(MIGRATION_TEMPLATE), "r") as f:
         template = f.read().format_map({"date": datetime.now().strftime("%Y-%m-%d"), "filename": filename})
 
-    with open(os.path.join(MIGRATION_DIR, filename), "w") as f:
+    with open(os.path.join(migration_dir, filename), "w") as f:
         f.write(template)
 
     logger.info(f"Created migration script: {filename}")
@@ -258,15 +266,19 @@ def read_credentials_from_file(path: str) -> tuple[str, str]:
 
 
 @cli_migration.command(name="run")
+@click.option("--collection-name", type=str, help="Name of collection to store migration history", default=MIGRATION_COLLECTION)
 @click.option("--db-creds-path", type=click.Path(exists=True), help="Path to JSON file containing database credentials.")
 @click.option("--db-host", type=str, help="ArangoDB host address.", default="http://localhost:8529")
 @click.option("--db-name", type=str, required=True, help="ArangoDB database name.")
 @click.option("--db-username", type=str, help="ArangoDB username.", default="root")
 @click.option("--db-password", type=str, help="ArangoDB password.", default="")
+@click.option(
+    "--script_directory", type=click.Path(exists=True), required=True, help="Path to directory containing migration scripts."
+)
 @click.argument("target", type=str, required=False)
 def run_migrations(target: str | None, **kwargs) -> None:
     """
-    Run database migrations for single-tenant database.`
+    Run database migrations for single-tenant database.
 
     If the target migration is prior to the latest migration, the `downgrade` method will be invoked for each migration
     from the latest down to the target.
@@ -284,9 +296,9 @@ def run_migrations(target: str | None, **kwargs) -> None:
         raise click.BadArgumentUsage("Invalid target migration. Must be a 4-digit number. e.g. 0001")
     try:
         # attempt to load migration scripts from local filesystem
-        migrations = load_migrations_from_dir(MIGRATION_DIR)
+        migrations = load_migrations_from_dir(kwargs["script_directory"])
 
-        if len(migrations) == 0:
+        if not migrations:
             raise Exception("No migrations found.")
 
         # attempt to establish a connection to the database.
