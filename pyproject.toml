@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyarango-migrations"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python migration utilities for ArangoDB"
 authors = ["John Santiago Jr. <jdsantiagojr@protonmail.com>"]
 readme = "README.md"
@@ -10,7 +10,7 @@ repository = "https://github.com/FiniteStateInc/pyarango-migrations"
 packages = [{ include = "toolbox" }]
 
 [tool.poetry.scripts]
-toolbox = 'bin.cli:main'
+toolbox = 'toolbox.cli:main'
 
 [tool.poetry.dependencies]
 python = "^3.10"

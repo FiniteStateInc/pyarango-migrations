@@ -2,7 +2,7 @@ import importlib.util
 from datetime import datetime
 from types import ModuleType
 
-from toolbox.settings import TIMESTAMP_FORMAT
+from toolbox.constants import TIMESTAMP_FORMAT
 
 
 def import_module(module_name: str, location: str) -> ModuleType:

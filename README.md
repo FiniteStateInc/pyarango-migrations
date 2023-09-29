@@ -86,3 +86,48 @@ To create a new migration script, you can use the create command followed by a b
 bin/cli.py migration create third_one # should create a file named 0003_third_one.py
 ```
 
+### Building and Installing the Package
+
+After making updates to your project, follow these steps to build and install the package:
+
+### Step 1: Building the Package
+
+To build the package, run the following command in your project directory:
+
+```shell
+poetry build
+```
+
+This command will create a distributable package in the `dist` directory of your project.
+
+### Step 2: Installing the Package Locally
+
+#### Using Poetry
+
+You can use Poetry to install the local package directly into your project. Run the following command, replacing `your-package-name-0.1.0-py3-none-any.whl` with the actual package filename:
+
+```shell
+poetry add path/to/your-package-name-0.1.0-py3-none-any.whl
+```
+
+This adds the package as a dependency to your Poetry project, and Poetry will handle the installation, including any dependencies your package may have.
+
+#### Using pip
+
+Alternatively, you can use `pip` to install the local package into your project:
+
+```shell
+pip install dist/your-package-name-0.1.0-py3-none-any.whl
+```
+
+### Step 3: Using the CLI Tool
+
+Once the package is installed in your local environment or project, you can use the CLI tool as follows:
+
+```shell
+poetry run toolbox migration ...
+```
+
+Replace `toolbox migration ...` with the specific command you need to execute using the CLI tool.
+
+By following these steps, you can build, install, and use your package conveniently within your local environment or project.
