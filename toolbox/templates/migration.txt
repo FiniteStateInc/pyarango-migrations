@@ -1,0 +1,19 @@
+"""
+{filename} description.
+"""
+__date__ = "{date}"
+
+import logging
+
+from arango import database
+
+logger = logging.getLogger("{filename}")
+logger.setLevel(logging.INFO)
+
+
+def upgrade(db: database.StandardDatabase):
+    raise NotImplementedError
+
+
+def downgrade(db: database.StandardDatabase):
+    raise NotImplementedError
