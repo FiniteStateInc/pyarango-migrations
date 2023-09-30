@@ -59,20 +59,6 @@ def _get_next_migration_filename_prefix(directory: str) -> str:
     return prefix.zfill(4)
 
 
-def _create_migration_directory(directory: str = DEFAULT_MIGRATION_DIR) -> None:
-    """
-    Create the migration directory if it does not exist.
-
-    :param directory: Path to directory that migration scripts will be stored.
-    :return: None
-    """
-    try:
-        os.makedirs(directory)
-    except FileExistsError:
-        # directory already exists
-        pass
-
-
 @cli_migration.command(name="create")
 @click.option(
     "--directory",
@@ -93,7 +79,12 @@ def create_migration_script(name: str, **kwargs: str) -> None:
     migration_dir = kwargs["directory"]
 
     # create migration directory if it does not exist
-    _create_migration_directory()
+    try:
+        os.makedirs(migration_dir)
+    except FileExistsError:
+        # directory already exists
+        pass
+
 
     # create migration script
     filename = f"{_get_next_migration_filename_prefix(migration_dir)}_{name}.py"
