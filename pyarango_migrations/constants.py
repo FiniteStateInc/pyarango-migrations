@@ -12,7 +12,7 @@ MIGRATION_TEMPLATE_PATH: Final = os.path.join(TEMPLATES_DIR, "migration.txt")
 MIGRATION_COLLECTION: Final = "pyarango_migration_history"
 
 # directory to store migration files if not specified
-DEFAULT_MIGRATION_DIR: Final = f"{os.getcwd()}/pyarango_migrations"
+DEFAULT_MIGRATION_DIR: Final = f"{os.getcwd()}/avocado_migrations"
 
 TIMESTAMP_FORMAT: Final = "%Y-%m-%dT%H:%M:%S.%fZ"
 
