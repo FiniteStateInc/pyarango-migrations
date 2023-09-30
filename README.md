@@ -10,21 +10,21 @@ The CLI migration tool is designed to manage and run migration scripts for an Ar
 To run migrations, you can use the `run` command via poetry or the `bin/cli.py` script. For example:
 
 ```shell
-poetry run toolbox migration run \
+poetry run avocado run \
     --db-host http://localhost:8529 \
     --db-username root \
     --db-password password \
     --db-database test_db
 # or alternatively
-bin/cli.py migration run --db-password password --db-database test_db
+bin/cli.py migration run --password password --dbname test_db
 ```
 
-Credentials can also be read from a file using the `--db-creds-path` option. For example:
+Credentials can also be read from a file using the `--credentials-file` option. For example:
 
 ```shell
-poetry run toolbox migration run \
-    --db-creds-path /path/to/creds.json \
-    --db-database test_db
+poetry run avocado run \
+    --credentials-file /path/to/creds.json \
+    --dbname test_db
 ````
 
 The credentials should be a JSON file in the following format:
@@ -43,7 +43,7 @@ When running the command without specifying a target, it will use the latest rec
 If you want to specify a target version just pass a 4-digit number as an argument. For example:
 
 ```shell
-poetry run toolbox migration run 0005
+poetry run avocado run 0005
 ```
 
 In this case, if the migration was prior to the latest migration, the downgrade method will be invoked for each migration from the latest down to the target.
@@ -57,7 +57,7 @@ It is important to note that the downgrade process is non-inclusive. If the late
 To run migrations for multiple tenant databases, you can use the `run-multi` command. For example:
 
 ```shell
-bin/cli.py migrate run-multi --db-creds-path ./creds.json --db-tenants-path ./tenants.json 0003
+bin/cli.py migrate run-multi --credentials-file ./creds.json --tenants-file ./tenants.json 0003
 ```
 
 As you can see, the command is an extension of the `run` with the only requirements being a path to a file containing the database names and another to the credentials.
@@ -83,7 +83,7 @@ The tenant file should be a JSON file with the following format:
 To create a new migration script, you can use the create command followed by a brief description. The tool will automatically generate a migration script filename for you. Here's how to create a migration script:
 
 ```shell
-bin/cli.py migration create third_one # should create a file named 0003_third_one.py
+bin/cli.py run create third_one # should create a file named 0003_third_one.py
 ```
 
 ### Building and Installing the Package
@@ -125,9 +125,9 @@ pip install dist/your-package-name-0.1.0-py3-none-any.whl
 Once the package is installed in your local environment or project, you can use the CLI tool as follows:
 
 ```shell
-poetry run toolbox migration ...
+poetry run avocado ...
 ```
 
-Replace `toolbox migration ...` with the specific command you need to execute using the CLI tool.
+Replace `avocado ...` with the specific command you need to execute using the CLI tool.
 
 By following these steps, you can build, install, and use your package conveniently within your local environment or project.

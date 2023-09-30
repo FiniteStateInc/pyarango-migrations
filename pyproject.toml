@@ -7,10 +7,10 @@ readme = "README.md"
 license = "MIT"
 repository = "https://github.com/FiniteStateInc/pyarango-migrations"
 
-packages = [{ include = "toolbox" }]
+packages = [{ include = "pyarango_migrations" }]
 
 [tool.poetry.scripts]
-toolbox = 'toolbox.cli:main'
+avocado = 'pyarango_migrations.cli:main'
 
 [tool.poetry.dependencies]
 python = "^3.10"

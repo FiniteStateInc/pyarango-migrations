@@ -2,7 +2,7 @@ import importlib.util
 from datetime import datetime
 from types import ModuleType
 
-from toolbox.constants import TIMESTAMP_FORMAT
+from pyarango_migrations.constants import TIMESTAMP_FORMAT
 
 
 def import_module(module_name: str, location: str) -> ModuleType:
@@ -24,7 +24,7 @@ def has_method(an_object: object, method_name: str) -> bool:
 
 def generate_timestamp() -> str:
     """
-    Generate a timestamp string in the format specified in toolbox/settings.py.
+    Generate a timestamp string in the format specified in pyarango_migrations/settings.py.
 
     :return: Timestamp string.
     """
