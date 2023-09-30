@@ -14,7 +14,7 @@ import arango.exceptions
 import click
 from arango import ArangoClient, database
 
-from toolbox.constants import MIGRATION_COLLECTION, MIGRATION_TEMPLATE, DEFAULT_MIGRATION_DIR
+from toolbox.constants import DEFAULT_MIGRATION_DIR, MIGRATION_COLLECTION, MIGRATION_TEMPLATE
 from toolbox.utils import generate_timestamp, has_method, import_module
 
 logger = logging.getLogger(__name__)
@@ -75,7 +75,8 @@ def _create_migration_directory(directory: str = DEFAULT_MIGRATION_DIR) -> None:
 
 @cli_migration.command(name="create")
 @click.option(
-    "--directory", "-d",
+    "--directory",
+    "-d",
     type=click.Path(exists=False, file_okay=False, dir_okay=True),
     required=False,
     default=DEFAULT_MIGRATION_DIR,
@@ -192,7 +193,11 @@ class Database:
         self.conn = client.db(dbname, username=username, password=password)
 
         # save reference to migration history collection, create it if it does not exist.
-        self.history = self.conn.collection(collection_name) if self.conn.has_collection(collection_name) else self.conn.create_collection(collection_name)
+        self.history = (
+            self.conn.collection(collection_name)
+            if self.conn.has_collection(collection_name)
+            else self.conn.create_collection(collection_name)
+        )
 
     def __migrate_up(self, migrations: list[Migration]) -> None:
         logger.info("db.upgrade: running upgrade migrations")
@@ -292,11 +297,28 @@ def read_credentials_from_file(path: str) -> tuple[str, str]:
 @cli_migration.command(name="run")
 @click.option("--host", "-h", type=str, help="Host address (default: http://localhost:8529).", default="http://localhost:8529")
 @click.option("--dbname", "-d", type=str, required=True, help="Database name.")
-@click.option("--collection", "-c", type=str, help=f"Name of collection to store migration history (default: {MIGRATION_COLLECTION}).", default=MIGRATION_COLLECTION)
+@click.option(
+    "--collection",
+    "-c",
+    type=str,
+    help=f"Name of collection to store migration history (default: {MIGRATION_COLLECTION}).",
+    default=MIGRATION_COLLECTION,
+)
 @click.option("--user", "-u", type=str, help="Username (default: root).", default="root")
 @click.option("--password", "-p", type=str, help="Password.", default="")
-@click.option("--credentials-file", "-P", type=click.Path(exists=True, file_okay=True, dir_okay=False), help="Path to JSON file containing database credentials.")
-@click.option("--script-directory", "-s", type=click.Path(exists=True, file_okay=False, dir_okay=True), help=f"Path to directory containing migration scripts (default: {DEFAULT_MIGRATION_DIR})", default=DEFAULT_MIGRATION_DIR)
+@click.option(
+    "--credentials-file",
+    "-P",
+    type=click.Path(exists=True, file_okay=True, dir_okay=False),
+    help="Path to JSON file containing database credentials.",
+)
+@click.option(
+    "--script-directory",
+    "-s",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help=f"Path to directory containing migration scripts (default: {DEFAULT_MIGRATION_DIR})",
+    default=DEFAULT_MIGRATION_DIR,
+)
 @click.argument("target", type=str, required=False)
 def run_migrations(target: str | None, **kwargs) -> None:
     """
