@@ -1,6 +1,8 @@
 #!/usr/bin/env poetry run python
 # -*- coding: utf-8 -*-
+import json
 import logging
+import sys
 
 import click
 
@@ -62,12 +64,14 @@ class StdRunCommand(click.Command):
                 show_default=True,
                 help="Path to directory containing migration scripts.",
             ),
-            click.Argument(("target",), type=str, required=False),
+            click.Option(
+                ("--target", "-t"), type=str, required=False, default=None, help="Target migration version. e.g. 0001"
+            ),
         ]
 
 
 @cli.command(name="run", cls=StdRunCommand)
-def run_cmd(target: str | None, **kwargs) -> None:
+def run_cmd(**kwargs) -> None:
     """
     Run database migrations for single-tenant database. If a target is specified, only migrations up to and including
     the target will be run. If no target is specified, all migrations will be run.
@@ -79,62 +83,32 @@ def run_cmd(target: str | None, **kwargs) -> None:
     If target is same as the current migration version, no migrations will be run.
     """
     dbname = kwargs.pop("dbname")
+    target = kwargs.pop("target")
     run_migrations(dbname, target, **kwargs)
 
 
-@cli.command(name="run-multi", cls=StdRunCommand)
+@cli.command(name="run-multi-tenant", cls=StdRunCommand)
 @click.option(
     "--tenants-file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
     help="Path to JSON file containing database tenants.",
     required=True,
 )
-def run_multi_cmd(target: str | None, **kwargs) -> None:
-    pass
+def run_multi_tenant_cmd(**kwargs) -> None:
+    """
+    Run database migrations for all tenants specified in tenants JSON file.
+    """
+    try:
+        tenants = json.load(open(kwargs["tenants_file"], "r"))
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid tenants file. {e}")
+        sys.exit(1)
 
+    target = kwargs.pop("target")
 
-# @click.option(
-#     "--tenants-file",
-#     type=click.Path(exists=True, file_okay=True, dir_okay=False),
-#     help="Path to JSON file containing database tenants.",
-#     required=True,
-# )
-# @click.argument("target", type=str, required=False)
-# def run_multi_tenant_migrations(target: str | None, **kwargs) -> None:
-#     """
-#     Run database migrations for all tenants specified in tenants JSON file.
-#
-#     :param target: Target migration.
-#     :param kwargs: Additional command options. For more information, please refer to the `--help` command.
-#     :return: None
-#     """
-#     try:
-#         tenants = json.load(open(kwargs["tenants_file"], "r"))
-#     except json.JSONDecodeError as e:
-#         logger.error(f"Invalid tenants file. {e}")
-#         sys.exit(1)
-#
-#     ctx = click.get_current_context()
-#
-#     host = kwargs["host"]
-#     credentials_filepath = kwargs["credentials_file"]
-#
-#     for tenant in tenants:
-#         dbname = tenant["databaseName"]
-#         # fmt: off
-#         run_migrations.main(
-#             args=[
-#                 "--host", host,
-#                 "--dbname", dbname,
-#                 "-P", credentials_filepath,
-#                 target or "",
-#             ],
-#             prog_name=ctx.find_root().info_name,
-#             standalone_mode=False,
-#         )
-#         # fmt: on
-#
-#     logger.info("run_multi_tenant_migrations: complete")
+    for tenant in tenants:
+        dbname = tenant["databaseName"]
+        run_migrations(dbname, target, **kwargs)
 
 
 def main():
