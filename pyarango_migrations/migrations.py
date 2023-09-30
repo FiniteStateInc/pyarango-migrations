@@ -173,35 +173,35 @@ class Database:
 
     def __migrate_up(self, migrations: list[Migration]) -> None:
         logger.info("db.upgrade: running upgrade migrations")
-        if migrations:
-            applied_migrations = {entity["_key"] for entity in self.history.all()}
 
-            for m in migrations:
-                if m.key not in applied_migrations:
-                    logger.info(f"db.upgrade: running migration {m.key}")
-                    m.upgrade(self.conn)
-                    self.history.insert({"_key": m.key, "ts": generate_timestamp()})
-                else:
-                    logger.info(f"db.upgrade: migration {m.key} has already been applied, skipping.")
-        else:
-            logger.warning("db.upgrade: no migrations to run")
+        applied_migrations = {entity["_key"] for entity in self.history.all()}
+
+        for m in migrations:
+            if m.key in applied_migrations:
+                logger.info(f"db.upgrade: migration {m.key} has already been applied, skipping.")
+                continue
+            m.upgrade(self.conn)
+            self.history.insert({"_key": m.key, "ts": generate_timestamp()})
 
         logger.info("db.upgrade: complete")
 
     def __migrate_down(self, migrations: list[Migration]) -> None:
         logger.info("db.upgrade: running downgrade migrations")
 
-        if migrations:
-            for m in migrations:
-                logger.info(f"db.downgrade: running migration {m.key}")
-                m.downgrade(self.conn)
-                self.history.delete(m.key)
-        else:
-            logger.warning("db.downgrade: no migrations to run")
+        for m in migrations:
+            logger.info(f"db.downgrade: running migration {m.key}")
+            m.downgrade(self.conn)
+            self.history.delete(m.key)
 
         logger.info("db.downgrade: complete")
 
     def migrate(self, migrations: list[Migration], target: str | None) -> None:
+        if not isinstance(migrations, list):
+            raise ValueError("Invalid migration list. Must be a list of Migration objects.")
+        if not migrations:
+            logger.warning("db.migrate: no migrations to run")
+            return
+
         logger.info(f"db.migrate: starting {self.conn.name}")
 
         target = target or migrations[-1].key
