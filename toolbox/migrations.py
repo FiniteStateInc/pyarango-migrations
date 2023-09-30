@@ -85,7 +85,6 @@ def create_migration_script(name: str, **kwargs: str) -> None:
         # directory already exists
         pass
 
-
     # create migration script
     filename = f"{_get_next_migration_filename_prefix(migration_dir)}_{name}.py"
 
