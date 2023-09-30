@@ -78,7 +78,8 @@ def run_cmd(target: str | None, **kwargs) -> None:
 
     If target is same as the current migration version, no migrations will be run.
     """
-    run_migrations(target, **kwargs)
+    dbname = kwargs.pop("dbname")
+    run_migrations(dbname, target, **kwargs)
 
 
 @cli.command(name="run-multi", cls=StdRunCommand)

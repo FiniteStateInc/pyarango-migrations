@@ -267,8 +267,8 @@ def _read_credentials_from_file(path: str) -> tuple[str, str]:
 
 
 def run_migrations(
+    dbname: str,
     target: str | None,
-    dbname: str | None,
     host: str = DEFAULTS.host,
     collection: str = DEFAULTS.collection,
     username: str = DEFAULTS.user,
@@ -287,8 +287,8 @@ def run_migrations(
 
     If the target migration is the latest migration, no migrations will be run.
 
-    :param target: Target migration.
     :param dbname: ArangoDB database name.
+    :param target: Target migration.
     :param host: ArangoDB host address.
     :param collection: Name of collection to store migration history.
     :param username: ArangoDB username.
