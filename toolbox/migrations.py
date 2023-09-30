@@ -14,7 +14,7 @@ import arango.exceptions
 import click
 from arango import ArangoClient, database
 
-from toolbox.constants import MIGRATION_COLLECTION, MIGRATION_TEMPLATE
+from toolbox.constants import MIGRATION_COLLECTION, MIGRATION_TEMPLATE, DEFAULT_MIGRATION_DIR
 from toolbox.utils import generate_timestamp, has_method, import_module
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def _get_migration_filenames_in_path(directory: str) -> Iterator[str]:
     A migration script is identified by its filename format which is a 4-digit number followed by an underscore and
     a descriptive name, concluding with the .py extension.
 
-    :param directory: Path to directory containing backfill scripts.
+    :param directory: Path to directory containing migration scripts.
     :return: Sorted list of filenames in the directory.
     """
     if not os.path.isdir(directory):
@@ -59,13 +59,27 @@ def _get_next_migration_filename_prefix(directory: str) -> str:
     return prefix.zfill(4)
 
 
+def _create_migration_directory(directory: str = DEFAULT_MIGRATION_DIR) -> None:
+    """
+    Create the migration directory if it does not exist.
+
+    :param directory: Path to directory that migration scripts will be stored.
+    :return: None
+    """
+    try:
+        os.makedirs(directory)
+    except FileExistsError:
+        # directory already exists
+        pass
+
+
 @cli_migration.command(name="create")
 @click.option(
-    "--directory",
+    "--directory", "-d",
+    type=click.Path(exists=False, file_okay=False, dir_okay=True),
     required=False,
-    type=click.Path(exists=True),
-    help="Path to directory to create migration script in.",
-    default=f"{os.getcwd()}/migrations",
+    default=DEFAULT_MIGRATION_DIR,
+    help=f"Directory where the migration script will be created. (Default {DEFAULT_MIGRATION_DIR})",
 )
 @click.argument("name", required=True, type=str)
 def create_migration_script(name: str, **kwargs: str) -> None:
@@ -76,6 +90,11 @@ def create_migration_script(name: str, **kwargs: str) -> None:
     :return: None
     """
     migration_dir = kwargs["directory"]
+
+    # create migration directory if it does not exist
+    _create_migration_directory()
+
+    # create migration script
     filename = f"{_get_next_migration_filename_prefix(migration_dir)}_{name}.py"
 
     with open(os.path.join(MIGRATION_TEMPLATE), "r") as f:
@@ -97,7 +116,7 @@ class InvalidMigrationError(Exception):
 
 class Migration:
     """
-    A migration object represents a migration script.
+    The Migration class represents a migration script that enables database upgrades and downgrades.
     """
 
     def __init__(self, filepath: str) -> None:
@@ -146,29 +165,34 @@ class Migration:
 
 class Database:
     """
-    A database object represents a connection to an ArangoDB database. It is used to run migrations.
+    The Database object establishes a connection to an Arango database and is utilized for running migrations.
     """
 
-    def __init__(self, host: str, name: str, username: str, password: str):
+    def __init__(self, host: str, dbname: str, username: str, password: str, collection_name: str = MIGRATION_COLLECTION):
         """
         Initialize a database object.
 
         :param host: ArangoDB host address.
-        :param name: ArangoDB database name.
+        :param dbname: ArangoDB database name.
         :param username: ArangoDB username.
         :param password: ArangoDB password.
+        :param collection_name: Name of collection to store migration history.
         """
-        if invalid_args := [arg for arg in (host, name, username, password) if not isinstance(arg, str)]:
-            raise TypeError(f"Invalid argument types: {invalid_args}")
+        # check if host, dbname, username, and password are valid strings
+        if not all(isinstance(arg, str) and arg.strip() for arg in (host, dbname, username, password)):
+            raise ValueError("All arguments must be non-empty strings")
+
+        # check if collection_name is a valid string
+        if not isinstance(collection_name, str) or not collection_name.strip():
+            raise ValueError("Collection name must be a non-empty string")
 
         client = ArangoClient(hosts=host, request_timeout=900)
 
         # save reference to database connection
-        self.conn = client.db(name, username=username, password=password)
+        self.conn = client.db(dbname, username=username, password=password)
 
         # save reference to migration history collection, create it if it does not exist.
-        c_name = MIGRATION_COLLECTION
-        self.history = self.conn.collection(c_name) if self.conn.has_collection(c_name) else self.conn.create_collection(c_name)
+        self.history = self.conn.collection(collection_name) if self.conn.has_collection(collection_name) else self.conn.create_collection(collection_name)
 
     def __migrate_up(self, migrations: list[Migration]) -> None:
         logger.info("db.upgrade: running upgrade migrations")
@@ -266,15 +290,13 @@ def read_credentials_from_file(path: str) -> tuple[str, str]:
 
 
 @cli_migration.command(name="run")
-@click.option("--collection-name", type=str, help="Name of collection to store migration history", default=MIGRATION_COLLECTION)
-@click.option("--db-creds-path", type=click.Path(exists=True), help="Path to JSON file containing database credentials.")
-@click.option("--db-host", type=str, help="ArangoDB host address.", default="http://localhost:8529")
-@click.option("--db-name", type=str, required=True, help="ArangoDB database name.")
-@click.option("--db-username", type=str, help="ArangoDB username.", default="root")
-@click.option("--db-password", type=str, help="ArangoDB password.", default="")
-@click.option(
-    "--script_directory", type=click.Path(exists=True), required=True, help="Path to directory containing migration scripts."
-)
+@click.option("--host", "-h", type=str, help="Host address (default: http://localhost:8529).", default="http://localhost:8529")
+@click.option("--dbname", "-d", type=str, required=True, help="Database name.")
+@click.option("--collection", "-c", type=str, help=f"Name of collection to store migration history (default: {MIGRATION_COLLECTION}).", default=MIGRATION_COLLECTION)
+@click.option("--user", "-u", type=str, help="Username (default: root).", default="root")
+@click.option("--password", "-p", type=str, help="Password.", default="")
+@click.option("--credentials-file", "-P", type=click.Path(exists=True, file_okay=True, dir_okay=False), help="Path to JSON file containing database credentials.")
+@click.option("--script-directory", "-s", type=click.Path(exists=True, file_okay=False, dir_okay=True), help=f"Path to directory containing migration scripts (default: {DEFAULT_MIGRATION_DIR})", default=DEFAULT_MIGRATION_DIR)
 @click.argument("target", type=str, required=False)
 def run_migrations(target: str | None, **kwargs) -> None:
     """
@@ -295,7 +317,7 @@ def run_migrations(target: str | None, **kwargs) -> None:
     if target and not re.match(r"^\d{4}$", target):
         raise click.BadArgumentUsage("Invalid target migration. Must be a 4-digit number. e.g. 0001")
     try:
-        # attempt to load migration scripts from local filesystem
+        # attempt to load migration scripts from the specified directory
         migrations = load_migrations_from_dir(kwargs["script_directory"])
 
         if not migrations:
@@ -303,13 +325,14 @@ def run_migrations(target: str | None, **kwargs) -> None:
 
         # attempt to establish a connection to the database.
         db = Database(
-            kwargs["db_host"],
-            kwargs["db_name"],
+            kwargs["host"],
+            kwargs["dbname"],
             *(
-                read_credentials_from_file(db_cred_path)
-                if (db_cred_path := kwargs.get("db_creds_path"))
-                else (kwargs["db_username"], kwargs["db_password"])
+                read_credentials_from_file(credentials_filepath)
+                if (credentials_filepath := kwargs.get("credentials_file"))
+                else (kwargs["username"], kwargs["password"])
             ),
+            collection_name=kwargs["collection"],
         )
 
         # run database migrations
