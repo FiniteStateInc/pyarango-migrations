@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pyarango-migrations"
-version = "0.2.0"
+version = "0.2.1"
 description = "Python migration utilities for ArangoDB"
 authors = ["John Santiago Jr. <jdsantiagojr@protonmail.com>"]
 readme = "README.md"
