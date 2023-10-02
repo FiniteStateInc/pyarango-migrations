@@ -26,7 +26,7 @@ def cli() -> None:
     required=False,
     default=DEFAULTS.script_directory,
     show_default=True,
-    help=f"Directory where the migration script will be created.",
+    help="Directory where the migration script will be created.",
 )
 @click.argument("name", required=True, type=str)
 def create_cmd(name: str, **kwargs) -> None:
@@ -50,7 +50,7 @@ class StdRunCommand(click.Command):
                 show_default=True,
                 help="Name of collection to store migration history.",
             ),
-            click.Option(("--user", "-u"), type=str, default=DEFAULTS.user, show_default=True, help="Username."),
+            click.Option(("--username", "-u"), type=str, default=DEFAULTS.user, show_default=True, help="Username."),
             click.Option(("--password", "-p"), type=str, default=DEFAULTS.password, show_default=True, help="Password."),
             click.Option(
                 ("--credentials-file", "-P"),
@@ -84,7 +84,7 @@ def run_cmd(**kwargs) -> None:
     """
     dbname = kwargs.pop("dbname")
     target = kwargs.pop("target")
-    run_migrations(dbname, target, **kwargs)
+    run_migrations(dbname=dbname, target=target, **kwargs)
 
 
 @cli.command(name="run-multi-tenant", cls=StdRunCommand)
@@ -108,7 +108,7 @@ def run_multi_tenant_cmd(**kwargs) -> None:
 
     for tenant in tenants:
         dbname = tenant["databaseName"]
-        run_migrations(dbname, target, **kwargs)
+        run_migrations(dbname=dbname, target=target, **kwargs)
 
 
 def main():

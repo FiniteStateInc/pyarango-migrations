@@ -180,6 +180,7 @@ class Database:
             if m.key in applied_migrations:
                 logger.info(f"db.upgrade: migration {m.key} has already been applied, skipping.")
                 continue
+            logger.info(f"db.upgrade: running migration {m.key}")
             m.upgrade(self.conn)
             self.history.insert({"_key": m.key, "ts": generate_timestamp()})
 
@@ -268,13 +269,13 @@ def _read_credentials_from_file(path: str) -> tuple[str, str]:
 
 def run_migrations(
     dbname: str,
-    target: str | None,
     host: str = DEFAULTS.host,
-    collection: str = DEFAULTS.collection,
     username: str = DEFAULTS.user,
     password: str = DEFAULTS.password,
     script_directory: str = DEFAULTS.script_directory,
+    target: str | None = None,
     credentials_file: str = None,
+    collection: str = DEFAULTS.collection,
 ) -> None:
     """
     Run database migrations for single-tenant database.
@@ -287,14 +288,14 @@ def run_migrations(
 
     If the target migration is the latest migration, no migrations will be run.
 
-    :param dbname: ArangoDB database name.
-    :param target: Target migration.
+    :param dbname: ArangoDB database name (required).
     :param host: ArangoDB host address.
-    :param collection: Name of collection to store migration history.
     :param username: ArangoDB username.
     :param password: ArangoDB password.
     :param script_directory: Path to directory containing migration scripts.
-    :param credentials_file: Path to JSON file containing database credentials.
+    :param target: Target migration number in the format of a 4-digit number. e.g. 0001
+    :param credentials_file: Optional path to JSON file containing database credentials to override username/password.
+    :param collection: Name of collection to store migration history.
     :return: None
     """
     if not dbname:
@@ -318,6 +319,7 @@ def run_migrations(
         # run database migrations
         db.migrate(migrations, target)
     except arango.exceptions.ArangoServerError as e:
-        logger.error(f"db.migrate: failed to connect to {dbname} database. Error code: {e.http_code}")
-    except Exception as e:
-        logger.error(e)
+        logger.exception(f"db.migrate: failed to connect to {dbname} database. Error code: {e.http_code}")
+        raise
+    except Exception:
+        logger.exception(f"db.migrate: failed to run migrations for {dbname} database.")
