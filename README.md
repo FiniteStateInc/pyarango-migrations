@@ -11,10 +11,10 @@ To run migrations, you can use the `run` command via poetry or the `bin/cli.py` 
 
 ```shell
 poetry run avocado run \
-    --db-host http://localhost:8529 \
-    --db-username root \
-    --db-password password \
-    --db-database test_db
+    --host http://localhost:8529 \
+    --username root \
+    --password password \
+    --dbname test_db
 # or alternatively
 bin/cli.py migration run --password password --dbname test_db
 ```
@@ -57,7 +57,7 @@ It is important to note that the downgrade process is non-inclusive. If the late
 To run migrations for multiple tenant databases, you can use the `run-multi` command. For example:
 
 ```shell
-bin/cli.py migrate run-multi --credentials-file ./creds.json --tenants-file ./tenants.json 0003
+bin/cli.py migrate run-multi-tenant --credentials-file ./creds.json --tenants-file ./tenants.json 0003
 ```
 
 As you can see, the command is an extension of the `run` with the only requirements being a path to a file containing the database names and another to the credentials.
@@ -86,48 +86,3 @@ To create a new migration script, you can use the create command followed by a b
 bin/cli.py run create third_one # should create a file named 0003_third_one.py
 ```
 
-### Building and Installing the Package
-
-After making updates to your project, follow these steps to build and install the package:
-
-### Step 1: Building the Package
-
-To build the package, run the following command in your project directory:
-
-```shell
-poetry build
-```
-
-This command will create a distributable package in the `dist` directory of your project.
-
-### Step 2: Installing the Package Locally
-
-#### Using Poetry
-
-You can use Poetry to install the local package directly into your project. Run the following command, replacing `your-package-name-0.1.0-py3-none-any.whl` with the actual package filename:
-
-```shell
-poetry add path/to/your-package-name-0.1.0-py3-none-any.whl
-```
-
-This adds the package as a dependency to your Poetry project, and Poetry will handle the installation, including any dependencies your package may have.
-
-#### Using pip
-
-Alternatively, you can use `pip` to install the local package into your project:
-
-```shell
-pip install dist/your-package-name-0.1.0-py3-none-any.whl
-```
-
-### Step 3: Using the CLI Tool
-
-Once the package is installed in your local environment or project, you can use the CLI tool as follows:
-
-```shell
-poetry run avocado ...
-```
-
-Replace `avocado ...` with the specific command you need to execute using the CLI tool.
-
-By following these steps, you can build, install, and use your package conveniently within your local environment or project.
