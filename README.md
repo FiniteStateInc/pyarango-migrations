@@ -43,7 +43,7 @@ When running the command without specifying a target, it will use the latest rec
 If you want to specify a target version just pass a 4-digit number as an argument. For example:
 
 ```shell
-poetry run avocado run 0005
+poetry run avocado run --target 0005
 ```
 
 In this case, if the migration was prior to the latest migration, the downgrade method will be invoked for each migration from the latest down to the target.
@@ -57,7 +57,7 @@ It is important to note that the downgrade process is non-inclusive. If the late
 To run migrations for multiple tenant databases, you can use the `run-multi` command. For example:
 
 ```shell
-bin/cli.py migrate run-multi-tenant --credentials-file ./creds.json --tenants-file ./tenants.json 0003
+bin/cli.py migrate run-multi-tenant --credentials-file ./creds.json --tenants-file ./tenants.json --target 0003
 ```
 
 As you can see, the command is an extension of the `run` with the only requirements being a path to a file containing the database names and another to the credentials.
