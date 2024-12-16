@@ -14,7 +14,7 @@ avocado = 'pyarango_migrations.cli:main'
 
 [tool.poetry.dependencies]
 python = "^3.10"
-python-arango = "^7.6.1"
+python-arango = "^8.1.4"
 click = "^8.1.7"
 
 [tool.black]
