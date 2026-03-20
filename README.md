@@ -36,6 +36,10 @@ The credentials should be a JSON file in the following format:
 }
 ```
 
+If the credentials file is malformed or missing required keys, the command
+fails immediately with a non-zero exit status. Library callers also receive a
+raised exception instead of a logged-and-suppressed failure.
+
 When running the command without specifying a target, it will use the latest record found in the database as the starting point and execute the upgrade method for each migration located in the migrations' directory. For instance, if the latest migration is labeled as "0005", and the migration directory contains "0006," "0007," and "0008," the tool will execute the upgrade method for each migration in sequential order, including "0008."
 
 #### Specifying a Target Migration
@@ -62,6 +66,11 @@ bin/cli.py migrate run-multi-tenant --credentials-file ./creds.json --tenants-fi
 
 As you can see, the command is an extension of the `run` with the only requirements being a path to a file containing the database names and another to the credentials.
 
+The multi-tenant command does not require `--dbname`; each tenant entry in the
+JSON file supplies the database name to migrate. If any tenant migration fails,
+the command stops and exits non-zero instead of logging the error and
+continuing as if it succeeded.
+
 The tenant file should be a JSON file with the following format:
 
 ```json
@@ -85,4 +94,10 @@ To create a new migration script, you can use the create command followed by a b
 ```shell
 bin/cli.py run create third_one # should create a file named 0003_third_one.py
 ```
+
+### Failure Behavior
+
+Library functions now raise their underlying exceptions instead of suppressing
+them. The CLI keeps failures user-friendly by surfacing a concise error message
+and returning a non-zero exit code.
 

@@ -1,4 +1,13 @@
-__all__ = ("create_migration_script", "run_migrations", "Database", "InvalidMigrationError", "Migration")
+__all__ = (
+    "create_migration_script",
+    "run_migrations",
+    "Database",
+    "MigrationError",
+    "InvalidCredentialsError",
+    "InvalidMigrationError",
+    "NoMigrationsFoundError",
+    "Migration",
+)
 import json
 import logging
 import os
@@ -9,7 +18,6 @@ from functools import cache
 from types import ModuleType
 from typing import Iterator
 
-import arango.exceptions
 from arango import ArangoClient, database
 
 from pyarango_migrations.constants import DEFAULTS, MIGRATION_TEMPLATE_PATH
@@ -45,10 +53,11 @@ def _get_next_migration_filename_prefix(directory: str) -> str:
     :param directory: Path to directory containing migration scripts.
     :return: Zero-padded string representing the next migration script filename prefix.
     """
-    try:
-        prefix = str(int(deque(_get_migration_filenames_in_path(directory), maxlen=1)[0].split("_")[0]) + 1)
-    except IndexError:
-        prefix = "1"
+    filenames = deque(_get_migration_filenames_in_path(directory), maxlen=1)
+    if not filenames:
+        return "0001"
+
+    prefix = str(int(filenames[0].split("_")[0]) + 1)
     return prefix.zfill(4)
 
 
@@ -60,11 +69,7 @@ def create_migration_script(name: str, directory: str = DEFAULTS.script_director
     :param directory: Path to directory where the migration script will be created.
     :return: None
     """
-    try:
-        os.makedirs(directory)
-    except FileExistsError:
-        # directory already exists
-        pass
+    os.makedirs(directory, exist_ok=True)
 
     # create migration script
     filename = f"{_get_next_migration_filename_prefix(directory)}_{name}.py"
@@ -84,6 +89,18 @@ class InvalidMigrationError(Exception):
     """
 
     pass
+
+
+class MigrationError(Exception):
+    """Base class for package-specific migration errors."""
+
+
+class InvalidCredentialsError(MigrationError, ValueError):
+    """Raised when a credentials file is missing required fields."""
+
+
+class NoMigrationsFoundError(MigrationError):
+    """Raised when a migrations directory contains no migration scripts."""
 
 
 class Migration:
@@ -207,14 +224,11 @@ class Database:
 
         target = target or migrations[-1].key
 
-        try:
-            # get the latest migration key from the history collection
-            latest = self.conn.aql.execute(
-                "FOR m IN @@collection SORT m._key DESC LIMIT 1 RETURN m", bind_vars={"@collection": self.collection_name}
-            ).next()["_key"]
-        except StopIteration:
-            # if no migrations have been applied, set latest to 0000
-            latest = "0000"
+        cursor = self.conn.aql.execute(
+            "FOR m IN @@collection SORT m._key DESC LIMIT 1 RETURN m", bind_vars={"@collection": self.collection_name}
+        )
+        latest_record = next(iter(cursor), None)
+        latest = latest_record["_key"] if latest_record else "0000"
 
         if target == latest:
             logger.info(f"db.migrate: target migration {target} is the latest migration, skipping {self.conn.name}")
@@ -259,12 +273,15 @@ def _read_credentials_from_file(path: str) -> tuple[str, str]:
     :param path: Path to JSON file containing database credentials.
     :return: Tuple containing database username and password.
     """
-    try:
-        with open(path, "r") as f:
-            creds = json.load(f)
-            return creds["username"], creds["password"]
-    except KeyError as e:
-        raise Exception(f"Invalid credentials file: {path}. Missing key: {e}")
+    with open(path, "r") as f:
+        creds = json.load(f)
+
+    missing = [key for key in ("username", "password") if key not in creds]
+    if missing:
+        missing_keys = ", ".join(missing)
+        raise InvalidCredentialsError(f"Invalid credentials file: {path}. Missing keys: {missing_keys}")
+
+    return creds["username"], creds["password"]
 
 
 def run_migrations(
@@ -302,24 +319,17 @@ def run_migrations(
         raise ValueError("Database name is required.")
     if target and not re.match(r"^\d{4}$", target):
         raise ValueError("Invalid target migration. Must be a 4-digit number. e.g. 0001")
-    try:
-        # attempt to load migration scripts from the specified directory
-        migrations = _load_migrations_from_dir(script_directory)
+    migrations = _load_migrations_from_dir(script_directory)
 
-        if not migrations:
-            raise Exception(f"No migrations found in {script_directory}")
+    if not migrations:
+        raise NoMigrationsFoundError(f"No migrations found in {script_directory}")
 
-        # if credentials_file is specified, read the username and password from the file
-        if credentials_file:
-            username, password = _read_credentials_from_file(credentials_file)
+    # if credentials_file is specified, read the username and password from the file
+    if credentials_file:
+        username, password = _read_credentials_from_file(credentials_file)
 
-        # attempt to establish a connection to the database.
-        db = Database(host, dbname, username, password, collection_name=collection)
+    # attempt to establish a connection to the database.
+    db = Database(host, dbname, username, password, collection_name=collection)
 
-        # run database migrations
-        db.migrate(migrations, target)
-    except arango.exceptions.ArangoServerError as e:
-        logger.exception(f"db.migrate: failed to connect to {dbname} database. Error code: {e.http_code}")
-        raise
-    except Exception:
-        logger.exception(f"db.migrate: failed to run migrations for {dbname} database.")
+    # run database migrations
+    db.migrate(migrations, target)

@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import json
 import logging
-import sys
 
 import click
 
@@ -10,7 +9,6 @@ from pyarango_migrations.constants import DEFAULTS
 from pyarango_migrations.migrations import create_migration_script, run_migrations
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -70,6 +68,42 @@ class StdRunCommand(click.Command):
         ]
 
 
+class MultiTenantRunCommand(click.Command):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.params += [
+            click.Option(("--host", "-h"), type=str, help="Host address.", default=DEFAULTS.host, show_default=True),
+            click.Option(
+                ("--collection", "-c"),
+                type=str,
+                default=DEFAULTS.collection,
+                show_default=True,
+                help="Name of collection to store migration history.",
+            ),
+            click.Option(("--username", "-u"), type=str, default=DEFAULTS.user, show_default=True, help="Username."),
+            click.Option(("--password", "-p"), type=str, default=DEFAULTS.password, show_default=True, help="Password."),
+            click.Option(
+                ("--credentials-file", "-P"),
+                type=click.Path(exists=True, file_okay=True, dir_okay=False),
+                help="Path to JSON file containing database credentials.",
+            ),
+            click.Option(
+                ("--script-directory", "-s"),
+                type=click.Path(exists=True, file_okay=False, dir_okay=True),
+                default=DEFAULTS.script_directory,
+                show_default=True,
+                help="Path to directory containing migration scripts.",
+            ),
+            click.Option(
+                ("--target", "-t"), type=str, required=False, default=None, help="Target migration version. e.g. 0001"
+            ),
+        ]
+
+
+def _raise_cli_error(exc: Exception) -> None:
+    raise click.ClickException(str(exc)) from exc
+
+
 @cli.command(name="run", cls=StdRunCommand)
 def run_cmd(**kwargs) -> None:
     """
@@ -84,10 +118,15 @@ def run_cmd(**kwargs) -> None:
     """
     dbname = kwargs.pop("dbname")
     target = kwargs.pop("target")
-    run_migrations(dbname=dbname, target=target, **kwargs)
+    try:
+        run_migrations(dbname=dbname, target=target, **kwargs)
+    except click.ClickException:
+        raise
+    except Exception as exc:
+        _raise_cli_error(exc)
 
 
-@cli.command(name="run-multi-tenant", cls=StdRunCommand)
+@cli.command(name="run-multi-tenant", cls=MultiTenantRunCommand)
 @click.option(
     "--tenants-file",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
@@ -99,16 +138,22 @@ def run_multi_tenant_cmd(**kwargs) -> None:
     Run database migrations for all tenants specified in tenants JSON file.
     """
     try:
-        tenants = json.load(open(kwargs["tenants_file"], "r"))
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid tenants file. {e}")
-        sys.exit(1)
+        with open(kwargs["tenants_file"], "r") as f:
+            tenants = json.load(f)
+    except json.JSONDecodeError as exc:
+        _raise_cli_error(ValueError(f"Invalid tenants file. {exc}"))
 
     target = kwargs.pop("target")
+    kwargs.pop("tenants_file")
 
-    for tenant in tenants:
-        dbname = tenant["databaseName"]
-        run_migrations(dbname=dbname, target=target, **kwargs)
+    try:
+        for tenant in tenants:
+            dbname = tenant["databaseName"]
+            run_migrations(dbname=dbname, target=target, **kwargs)
+    except click.ClickException:
+        raise
+    except Exception as exc:
+        _raise_cli_error(exc)
 
 
 def main():
